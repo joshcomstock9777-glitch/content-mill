@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Content Mill — Production Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c0d10;
+      --panel: #14161c;
+      --panel-2: #1b1e26;
+      --line: #2a2e38;
+      --text: #ecece8;
+      --muted: #8b9088;
+      --orange: #e36b1e;
+      --ok: #6fbf73;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font-family: "IBM Plex Sans", system-ui, sans-serif; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 20px 80px; }
+    header { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 28px; }
+    .brand { display: flex; gap: 12px; align-items: center; }
+    .mark { width: 36px; height: 36px; border-radius: 8px; background: var(--orange); display: grid; place-items: center; font-weight: 700; }
+    .eyebrow { font-family: "IBM Plex Mono", monospace; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--orange); margin: 0 0 6px; }
+    h1 { margin: 0; font-size: 28px; letter-spacing: -.02em; }
+    .sub { color: var(--muted); margin: 6px 0 0; max-width: 560px; }
+    .btn { border: 0; border-radius: 8px; padding: 10px 14px; background: var(--orange); color: #111; font-weight: 600; }
+    .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+    .grid { display: grid; grid-template-columns: 340px 1fr; gap: 18px; }
+    @media (max-width: 880px) { .grid { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+    .job { width: 100%; text-align: left; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 12px; margin-bottom: 8px; }
+    .job.active { border-color: var(--orange); }
+    .job small { color: var(--muted); }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 6px; }
+    input, textarea, select { width: 100%; background: #0f1116; border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+    textarea { min-height: 90px; resize: vertical; }
+    .gates { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0; }
+    .gate { font-family: "IBM Plex Mono", monospace; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+    .gate.on { color: #111; background: var(--ok); border-color: var(--ok); }
+    .gate.now { color: #111; background: var(--orange); border-color: var(--orange); }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .log { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 16px; padding-top: 12px; max-height: 180px; overflow: auto; }
+    .banner { background: #1c140c; border: 1px solid #5a3a16; color: #f0c48a; padding: 10px 12px; border-radius: 10px; margin-bottom: 16px; font-size: 13px; }
+    .empty { color: var(--muted); padding: 24px 8px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <p class="eyebrow">Production room // local</p>
+        <div class="brand">
+          <div class="mark">CM</div>
+          <div>
+            <h1>Content Mill</h1>
+            <p class="sub">Authorized idea in. Rights stay visible. Script, package, approve. No Replit. No push. Lives in this file.</p>
+          </div>
+        </div>
+      </div>
+      <button class="btn" id="newJob">New job</button>
+    </header>
+    <div class="banner">This is the working mill. Jobs save in this browser. Export a package when a short is approved. HQ can swallow these later.</div>
+    <div class="grid">
+      <aside class="panel">
+        <p class="eyebrow">Activity</p>
+        <div id="list"></div>
+      </aside>
+      <main class="panel" id="main"></main>
+    </div>
+  </div>
+  <script>
+    const STAGES = ["idea","rights","script","package","approve","export"];
+    const storeKey = "content-mill-v1";
+    function load() { try { return JSON.parse(localStorage.getItem(storeKey) || "[]"); } catch { return []; } }
+    function save(jobs) { localStorage.setItem(storeKey, JSON.stringify(jobs)); }
+    let jobs = load();
+    let currentId = jobs[0]?.id || null;
+    function uid() { return Math.random().toString(36).slice(2, 10); }
+    function now() { return new Date().toISOString(); }
+    function log(job, text) { job.activity.unshift({ at: now(), text }); }
+    function makeJob() {
+      const job = { id: uid(), title: "Untitled short", idea: "", rights: "", owner: "", platform: "YouTube Shorts", duration: "20 seconds", script: "", hook: "", captions: "", cta: "", stage: "idea", approved: false, activity: [{ at: now(), text: "Job opened." }] };
+      jobs.unshift(job); currentId = job.id; save(jobs); render();
+    }
+    function job() { return jobs.find(j => j.id === currentId) || null; }
+    function setStage(j, stage) { j.stage = stage; log(j, "Moved to " + stage + "."); save(jobs); render(); }
+    function canAdvance(j) {
+      if (j.stage === "idea") return j.idea.trim().length > 8 && j.title.trim();
+      if (j.stage === "rights") return j.rights.trim().length > 8 && j.owner.trim();
+      if (j.stage === "script") return j.script.trim().length > 20;
+      if (j.stage === "package") return j.hook.trim() && j.captions.trim() && j.cta.trim();
+      if (j.stage === "approve") return j.approved;
+      return true;
+    }
+    function nextStage(j) {
+      const i = STAGES.indexOf(j.stage);
+      if (i < 0 || i === STAGES.length - 1) return;
+      if (!canAdvance(j)) { alert("Finish this gate first."); return; }
+      if (j.stage === "approve") j.approved = true;
+      setStage(j, STAGES[i + 1]);
+    }
+    function exportJob(j) {
+      const pack = { mill: "content-mill-local", exported_at: now(), job: j, package: { title: j.title, platform: j.platform, duration: j.duration, rights: j.rights, owner: j.owner, hook: j.hook, script: j.script, captions: j.captions, cta: j.cta } };
+      const blob = new Blob([JSON.stringify(pack, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = (j.title || "short").replace(/\W+/g, "-").toLowerCase() + "-package.json";
+      a.click();
+      log(j, "Exported package."); save(jobs); render();
+    }
+    function renderList() {
+      const el = document.getElementById("list");
+      if (!jobs.length) { el.innerHTML = '<div class="empty">No jobs yet. Hit New job.</div>'; return; }
+      el.innerHTML = jobs.map(j => `<button class="job ${j.id === currentId ? "active" : ""}" data-id="${j.id}"><strong>${escapeHtml(j.title)}</strong><br /><small>${j.stage}${j.approved ? " · approved" : ""} · ${j.platform}</small></button>`).join("");
+      el.querySelectorAll(".job").forEach(btn => { btn.onclick = () => { currentId = btn.dataset.id; render(); }; });
+    }
+    function renderMain() {
+      const el = document.getElementById("main");
+      const j = job();
+      if (!j) { el.innerHTML = '<div class="empty">Open or create a job.</div>'; return; }
+      const gates = STAGES.map(s => {
+        const done = STAGES.indexOf(s) < STAGES.indexOf(j.stage) || (s === "approve" && j.approved) || (s === "export" && j.stage === "export");
+        const isNow = s === j.stage;
+        return `<span class="gate ${done ? "on" : ""} ${isNow ? "now" : ""}">${s}</span>`;
+      }).join("");
+      el.innerHTML = `<p class="eyebrow">Job ${j.id}</p><div class="gates">${gates}</div>
+        <label>Title</label><input id="f-title" value="${escapeAttr(j.title)}" />
+        <label>Authorized idea</label><textarea id="f-idea">${escapeHtml(j.idea)}</textarea>
+        <label>Who owns this / source rights</label><input id="f-owner" value="${escapeAttr(j.owner)}" placeholder="You, studio, licensed clip, public domain" />
+        <textarea id="f-rights" placeholder="Rights line that stays on every gate.">${escapeHtml(j.rights)}</textarea>
+        <label>Platform</label><select id="f-platform">${["YouTube Shorts","TikTok","Instagram Reels","X","Internal"].map(p => `<option ${p===j.platform?"selected":""}>${p}</option>`).join("")}</select>
+        <label>Duration</label><input id="f-duration" value="${escapeAttr(j.duration)}" />
+        <label>Script pass</label><textarea id="f-script">${escapeHtml(j.script)}</textarea>
+        <label>Hook</label><input id="f-hook" value="${escapeAttr(j.hook)}" />
+        <label>Captions</label><textarea id="f-captions">${escapeHtml(j.captions)}</textarea>
+        <label>CTA / platform copy</label><input id="f-cta" value="${escapeAttr(j.cta)}" />
+        <div class="row">
+          <button class="btn ghost" id="save">Save</button>
+          <button class="btn" id="advance">${j.stage === "approve" ? "Approve + export gate" : j.stage === "export" ? "Already at export" : "Advance gate"}</button>
+          <button class="btn ghost" id="export">Download package</button>
+        </div>
+        <div class="log">${j.activity.map(a => `<div>${escapeHtml(a.at.slice(0,19))} — ${escapeHtml(a.text)}</div>`).join("")}</div>`;
+      const grab = () => {
+        j.title = document.getElementById("f-title").value;
+        j.idea = document.getElementById("f-idea").value;
+        j.owner = document.getElementById("f-owner").value;
+        j.rights = document.getElementById("f-rights").value;
+        j.platform = document.getElementById("f-platform").value;
+        j.duration = document.getElementById("f-duration").value;
+        j.script = document.getElementById("f-script").value;
+        j.hook = document.getElementById("f-hook").value;
+        j.captions = document.getElementById("f-captions").value;
+        j.cta = document.getElementById("f-cta").value;
+      };
+      document.getElementById("save").onclick = () => { grab(); log(j, "Saved."); save(jobs); render(); };
+      document.getElementById("advance").onclick = () => { grab(); if (j.stage === "approve") j.approved = true; nextStage(j); };
+      document.getElementById("export").onclick = () => { grab(); if (!j.approved) { alert("Approval gate first."); return; } exportJob(j); };
+    }
+    function escapeHtml(s) { return String(s || "").replace(/[&<>]/g, c => ({"&":"&","<":"<",">":">"}[c])); }
+    function escapeAttr(s) { return escapeHtml(s).replace(/"/g, """); }
+    function render() { renderList(); renderMain(); }
+    document.getElementById("newJob").onclick = makeJob;
+    render();
+  </script>
+</body>
+</html>
